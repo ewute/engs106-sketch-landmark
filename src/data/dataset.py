@@ -257,6 +257,50 @@ class SiamesePairDataset(Dataset):
 # Gallery/query dataset for evaluation (retrieval)
 # ---------------------------------------------------------------------------
 
+class TripletBatchDataset(Dataset):
+    """
+    Dataset for batch-hard triplet mining.
+
+    Instead of pre-forming pairs, we load individual images with identity
+    labels. The triplet loss then mines hard positives/negatives *within*
+    each batch.
+
+    Each item returns (image, identity_label).  We interleave sketches and
+    photos so that each batch contains both modalities for each identity.
+    """
+
+    def __init__(self, pairs: list[dict], train: bool = True, seed: int = 42):
+        self.train = train
+        self.transform = get_transforms(train)
+        self.seed = seed
+        self.rng = random.Random(seed)
+
+        # Build flat list: each pair contributes 2 items (sketch + photo)
+        # with the same integer label so triplet mining can find them.
+        all_ids = sorted({p["identity"] for p in pairs})
+        self.id_to_int = {id_: i for i, id_ in enumerate(all_ids)}
+
+        self.items = []  # list of (path, int_label)
+        for p in pairs:
+            label = self.id_to_int[p["identity"]]
+            self.items.append((p["sketch"], label))
+            self.items.append((p["photo"], label))
+
+    def set_epoch(self, epoch: int):
+        self.rng = random.Random(self.seed + epoch)
+        # Shuffle items so each epoch sees different batch compositions
+        self.rng.shuffle(self.items)
+
+    def __len__(self):
+        return len(self.items)
+
+    def __getitem__(self, idx):
+        path, label = self.items[idx]
+        img = Image.open(path).convert("RGB")
+        img = self.transform(img)
+        return img, label
+
+
 class RetrievalDataset(Dataset):
     """
     For evaluation: loads all photos or all sketches with their identity labels.

@@ -1,5 +1,5 @@
 """
-Quick training runner that logs to file (avoids tqdm issues in PowerShell).
+Training runner: batch-hard triplet loss for sketch-photo matching.
 """
 import os
 import sys
@@ -13,16 +13,18 @@ from torch.utils.data import DataLoader
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.data.dataset import discover_pairs, split_pairs, SiamesePairDataset
-from src.models.siamese import SiameseNetwork, ContrastiveLoss
+from src.data.dataset import discover_pairs, split_pairs, TripletBatchDataset
+from src.models.siamese import SiameseNetwork, BatchHardTripletLoss
 
 
 def main():
     data_root = "data/raw"
     output_dir = "outputs"
     epochs = 100
-    batch_size = 16
-    lr = 5e-4
+    batch_size = 32      # larger batches = more identities per batch = better mining
+    lr = 3e-4
+    embedding_dim = 128  # compact embedding to reduce overfitting
+    margin = 0.3
     seed = 42
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -45,23 +47,25 @@ def main():
         json.dump(pairs, f, indent=2)
     print("  Saved splits to data/splits/", flush=True)
 
-    train_ds = SiamesePairDataset(splits["train"], train=True, seed=seed)
-    val_ds = SiamesePairDataset(splits["val"], train=False, seed=seed)
+    # TripletBatchDataset: each pair contributes sketch + photo = 2 items
+    train_ds = TripletBatchDataset(splits["train"], train=True, seed=seed)
+    val_ds = TripletBatchDataset(splits["val"], train=False, seed=seed)
+    print(f"  Train items: {len(train_ds)}  Val items: {len(val_ds)}", flush=True)
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=0)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=0)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=True)
+    val_loader = DataLoader(val_ds, batch_size=min(batch_size, len(val_ds)), shuffle=False, num_workers=0)
 
     # Model
-    print("Building model (downloading ResNet-50 weights)...", flush=True)
-    model = SiameseNetwork(embedding_dim=256, pretrained=True).to(device)
-    criterion = ContrastiveLoss(margin=1.0)
+    print("Building model...", flush=True)
+    model = SiameseNetwork(embedding_dim=embedding_dim, pretrained=True).to(device)
+    criterion = BatchHardTripletLoss(margin=margin)
 
     trainable_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
     frozen_count = sum(p.numel() for p in model.parameters() if not p.requires_grad)
     print(f"  Trainable: {trainable_count:,}  Frozen: {frozen_count:,}", flush=True)
 
     optimizer = torch.optim.AdamW(
-        [p for p in model.parameters() if p.requires_grad], lr=lr, weight_decay=1e-3
+        [p for p in model.parameters() if p.requires_grad], lr=lr, weight_decay=5e-3
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
 
@@ -73,16 +77,16 @@ def main():
 
     for epoch in range(1, epochs + 1):
         t0 = time.time()
-        train_ds.set_epoch(epoch)  # re-seed for different pos/neg pairings each epoch
+        train_ds.set_epoch(epoch)
 
         # Train
         model.train()
         train_loss = 0.0
         n = 0
-        for batch_idx, (sketches, photos, labels) in enumerate(train_loader):
-            sketches, photos, labels = sketches.to(device), photos.to(device), labels.to(device)
-            emb_s, emb_p = model(sketches, photos)
-            loss = criterion(emb_s, emb_p, labels)
+        for batch_idx, (images, labels) in enumerate(train_loader):
+            images, labels = images.to(device), labels.to(device)
+            embeddings = model.get_embedding(images)
+            loss = criterion(embeddings, labels)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -98,10 +102,10 @@ def main():
         val_loss = 0.0
         n = 0
         with torch.no_grad():
-            for sketches, photos, labels in val_loader:
-                sketches, photos, labels = sketches.to(device), photos.to(device), labels.to(device)
-                emb_s, emb_p = model(sketches, photos)
-                loss = criterion(emb_s, emb_p, labels)
+            for images, labels in val_loader:
+                images, labels = images.to(device), labels.to(device)
+                embeddings = model.get_embedding(images)
+                loss = criterion(embeddings, labels)
                 val_loss += loss.item()
                 n += 1
         val_loss /= max(n, 1)
@@ -119,12 +123,12 @@ def main():
                 "epoch": epoch,
                 "model_state_dict": model.state_dict(),
                 "val_loss": best_val_loss,
-                "args": {"embedding_dim": 256},
+                "args": {"embedding_dim": embedding_dim},
             }, os.path.join(output_dir, "best_model.pth"))
             print(f"  -> Saved best model (val={best_val_loss:.4f})", flush=True)
 
     # Save final
-    torch.save({"epoch": epochs, "model_state_dict": model.state_dict(), "args": {"embedding_dim": 256}},
+    torch.save({"epoch": epochs, "model_state_dict": model.state_dict(), "args": {"embedding_dim": embedding_dim}},
                os.path.join(output_dir, "final_model.pth"))
     with open(os.path.join(output_dir, "training_history.json"), "w") as f:
         json.dump(history, f, indent=2)

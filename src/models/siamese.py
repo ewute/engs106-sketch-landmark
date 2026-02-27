@@ -2,11 +2,10 @@
 Siamese network for sketch-photo matching.
 
 Architecture:
-  - Shared backbone: ResNet-50 (we use this instead of VGGFace2 since it's
-    available out-of-the-box in torchvision; a face-pretrained model can be
-    swapped in later).
-  - The backbone produces an embedding for each image.
-  - Contrastive loss pulls matching pairs close and pushes non-matching apart.
+  - Shared backbone: ResNet-50 pretrained on ImageNet.
+  - Frozen through layer3; only layer4 + projection head are trainable.
+  - Compact projection head to reduce overfitting on small datasets.
+  - Supports both contrastive and batch-hard triplet loss.
 """
 
 import torch
@@ -19,10 +18,10 @@ class EmbeddingNet(nn.Module):
     """
     Feature extractor that maps an image to a fixed-size embedding.
     Uses a pretrained ResNet-50 backbone with the classification head replaced
-    by a projection layer.
+    by a compact projection layer.
     """
 
-    def __init__(self, embedding_dim: int = 256, pretrained: bool = True):
+    def __init__(self, embedding_dim: int = 128, pretrained: bool = True):
         super().__init__()
 
         # Load pretrained ResNet-50
@@ -32,24 +31,24 @@ class EmbeddingNet(nn.Module):
         # Remove the final FC layer
         self.features = nn.Sequential(*list(backbone.children())[:-1])  # output: (B, 2048, 1, 1)
 
-        # Projection head
+        # Compact projection head — small to prevent overfitting on 131 training pairs
         self.projection = nn.Sequential(
-            nn.Linear(2048, 1024),
-            nn.BatchNorm1d(1024),
+            nn.Linear(2048, 512),
+            nn.BatchNorm1d(512),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.3),
-            nn.Linear(1024, embedding_dim),
+            nn.Dropout(0.5),
+            nn.Linear(512, embedding_dim),
         )
 
-        # Freeze early layers (first ~6 blocks), fine-tune later layers
+        # Freeze through layer3; only layer4 + projection are trainable
         self._freeze_early_layers()
 
     def _freeze_early_layers(self):
-        """Freeze only conv1, bn1, relu, maxpool, and layer1 (first 5 children).
-        This lets layer2, layer3, and layer4 adapt to the sketch-photo domain."""
+        """Freeze conv1, bn1, relu, maxpool, layer1, layer2, layer3.
+        Only layer4 (+ avgpool) and the projection head are trainable."""
         children = list(self.features.children())
-        # children[0]=conv1, [1]=bn1, [2]=relu, [3]=maxpool, [4]=layer1, [5]=layer2, [6]=layer3, [7]=layer4
-        for child in children[:5]:  # freeze through layer1 only
+        # [0]=conv1 [1]=bn1 [2]=relu [3]=maxpool [4]=layer1 [5]=layer2 [6]=layer3 [7]=layer4 [8]=avgpool
+        for child in children[:7]:  # freeze through layer3
             for param in child.parameters():
                 param.requires_grad = False
 
@@ -67,7 +66,7 @@ class SiameseNetwork(nn.Module):
     Returns embeddings for both inputs.
     """
 
-    def __init__(self, embedding_dim: int = 256, pretrained: bool = True):
+    def __init__(self, embedding_dim: int = 128, pretrained: bool = True):
         super().__init__()
         self.embedding_net = EmbeddingNet(embedding_dim, pretrained)
 
@@ -81,14 +80,55 @@ class SiameseNetwork(nn.Module):
         return self.embedding_net(x)
 
 
+class BatchHardTripletLoss(nn.Module):
+    """
+    Batch-hard triplet loss (Hermans et al., 2017).
+
+    For each anchor in the batch, finds:
+      - hardest positive: the farthest embedding with the same label
+      - hardest negative: the closest embedding with a different label
+    Then applies: loss = max(0, d(a, p) - d(a, n) + margin)
+
+    This is far more effective than random pair sampling on small datasets
+    because every batch yields the most informative gradient signal.
+    """
+
+    def __init__(self, margin: float = 0.3):
+        super().__init__()
+        self.margin = margin
+
+    def forward(self, embeddings: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        # Pairwise distance matrix
+        dist = torch.cdist(embeddings, embeddings, p=2)  # (B, B)
+
+        # Masks
+        labels = labels.unsqueeze(0)  # (1, B)
+        same_id = (labels == labels.T).float()   # (B, B)
+        diff_id = 1.0 - same_id
+
+        # For each anchor, hardest positive = max distance among same-id
+        # Mask out self (distance 0) and different-id
+        pos_dist = dist * same_id
+        hardest_pos, _ = pos_dist.max(dim=1)  # (B,)
+
+        # For each anchor, hardest negative = min distance among diff-id
+        # Set same-id distances to a large value so they're never picked
+        big = dist.max().item() + 1.0
+        neg_dist = dist + same_id * big
+        hardest_neg, _ = neg_dist.min(dim=1)  # (B,)
+
+        # Triplet loss
+        loss = F.relu(hardest_pos - hardest_neg + self.margin)
+        # Only count valid triplets (anchors that have both a pos and neg)
+        valid = (same_id.sum(dim=1) > 1) & (diff_id.sum(dim=1) > 0)
+        if valid.sum() == 0:
+            return loss.mean()  # fallback
+        return loss[valid].mean()
+
+
 class ContrastiveLoss(nn.Module):
     """
-    Contrastive loss (Hadsell et al., 2006).
-    
-    For matching pairs (label=1): loss = d^2
-    For non-matching pairs (label=0): loss = max(0, margin - d)^2
-    
-    where d = euclidean distance between embeddings.
+    Contrastive loss (Hadsell et al., 2006).  Kept for backward compatibility.
     """
 
     def __init__(self, margin: float = 1.0):
