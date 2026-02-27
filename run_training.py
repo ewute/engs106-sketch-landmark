@@ -20,9 +20,9 @@ from src.models.siamese import SiameseNetwork, ContrastiveLoss
 def main():
     data_root = "data/raw"
     output_dir = "outputs"
-    epochs = 5
-    batch_size = 8
-    lr = 1e-4
+    epochs = 100
+    batch_size = 16
+    lr = 5e-4
     seed = 42
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -35,6 +35,15 @@ def main():
 
     splits = split_pairs(pairs, seed=seed)
     print(f"  Train: {len(splits['train'])}  Val: {len(splits['val'])}  Test: {len(splits['test'])}", flush=True)
+
+    # Save splits so evaluate.py uses the exact same held-out set
+    os.makedirs("data/splits", exist_ok=True)
+    for split_name, split_data in splits.items():
+        with open(f"data/splits/{split_name}.json", "w") as f:
+            json.dump(split_data, f, indent=2)
+    with open("data/splits/all_pairs.json", "w") as f:
+        json.dump(pairs, f, indent=2)
+    print("  Saved splits to data/splits/", flush=True)
 
     train_ds = SiamesePairDataset(splits["train"], train=True, seed=seed)
     val_ds = SiamesePairDataset(splits["val"], train=False, seed=seed)
@@ -51,9 +60,10 @@ def main():
     frozen_count = sum(p.numel() for p in model.parameters() if not p.requires_grad)
     print(f"  Trainable: {trainable_count:,}  Frozen: {frozen_count:,}", flush=True)
 
-    optimizer = torch.optim.Adam(
-        [p for p in model.parameters() if p.requires_grad], lr=lr, weight_decay=1e-5
+    optimizer = torch.optim.AdamW(
+        [p for p in model.parameters() if p.requires_grad], lr=lr, weight_decay=1e-3
     )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
 
     os.makedirs(output_dir, exist_ok=True)
     best_val_loss = float("inf")
@@ -63,6 +73,7 @@ def main():
 
     for epoch in range(1, epochs + 1):
         t0 = time.time()
+        train_ds.set_epoch(epoch)  # re-seed for different pos/neg pairings each epoch
 
         # Train
         model.train()
@@ -95,8 +106,10 @@ def main():
                 n += 1
         val_loss /= max(n, 1)
 
+        scheduler.step()
         elapsed = time.time() - t0
-        print(f"Epoch {epoch}/{epochs} | Train: {train_loss:.4f} | Val: {val_loss:.4f} | {elapsed:.1f}s", flush=True)
+        lr_now = optimizer.param_groups[0]['lr']
+        print(f"Epoch {epoch}/{epochs} | Train: {train_loss:.4f} | Val: {val_loss:.4f} | LR: {lr_now:.2e} | {elapsed:.1f}s", flush=True)
 
         history.append({"epoch": epoch, "train_loss": train_loss, "val_loss": val_loss, "time": elapsed})
 

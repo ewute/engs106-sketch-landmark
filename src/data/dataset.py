@@ -132,8 +132,8 @@ def split_pairs(
     """
     rng = random.Random(seed)
 
-    # Group by identity
-    identities = list({p["identity"] for p in pairs})
+    # Group by identity (sorted for determinism across Python runs)
+    identities = sorted({p["identity"] for p in pairs})
     rng.shuffle(identities)
 
     n = len(identities)
@@ -162,22 +162,30 @@ def split_pairs(
 
 IMG_SIZE = 224  # standard for most pretrained CNNs
 
+# ImageNet stats — must match what ResNet-50 was pretrained with
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
+IMAGENET_STD = [0.229, 0.224, 0.225]
+
 def get_transforms(train: bool = True):
     """Return image transforms for photos and sketches."""
     if train:
         return transforms.Compose([
-            transforms.Resize((IMG_SIZE, IMG_SIZE)),
+            transforms.Resize(256),
+            transforms.RandomResizedCrop(IMG_SIZE, scale=(0.7, 1.0)),
             transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(5),
-            transforms.ColorJitter(brightness=0.2, contrast=0.2),
+            transforms.RandomRotation(10),
+            transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.1),
+            transforms.RandomGrayscale(p=0.1),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
+            transforms.RandomErasing(p=0.2, scale=(0.02, 0.15)),
         ])
     else:
         return transforms.Compose([
-            transforms.Resize((IMG_SIZE, IMG_SIZE)),
+            transforms.Resize(256),
+            transforms.CenterCrop(IMG_SIZE),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ])
 
 
@@ -196,14 +204,22 @@ class SiamesePairDataset(Dataset):
 
     def __init__(self, pairs: list[dict], train: bool = True, seed: int = 42):
         self.pairs = pairs
+        self.train = train
         self.transform = get_transforms(train)
+        self.seed = seed
+        self.epoch = 0
         self.rng = random.Random(seed)
 
         # Index pairs by identity for efficient sampling
         self.id_to_pairs = {}
         for p in pairs:
             self.id_to_pairs.setdefault(p["identity"], []).append(p)
-        self.identities = list(self.id_to_pairs.keys())
+        self.identities = sorted(self.id_to_pairs.keys())  # sorted for determinism
+
+    def set_epoch(self, epoch: int):
+        """Re-seed RNG so each epoch sees different positive/negative pairings."""
+        self.epoch = epoch
+        self.rng = random.Random(self.seed + epoch)
 
     def __len__(self):
         # Each epoch: iterate through all pairs once
@@ -223,9 +239,9 @@ class SiamesePairDataset(Dataset):
         else:
             # Negative pair: different identity
             label = 0
-            neg_id = self.rng.choice(
-                [i for i in self.identities if i != anchor["identity"]]
-            )
+            # Semi-hard: pick from a small random pool and let the loss handle it
+            neg_candidates = [i for i in self.identities if i != anchor["identity"]]
+            neg_id = self.rng.choice(neg_candidates)
             partner = self.rng.choice(self.id_to_pairs[neg_id])
 
         sketch = self._load_image(anchor["sketch"])

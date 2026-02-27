@@ -34,20 +34,22 @@ class EmbeddingNet(nn.Module):
 
         # Projection head
         self.projection = nn.Sequential(
-            nn.Linear(2048, 512),
+            nn.Linear(2048, 1024),
+            nn.BatchNorm1d(1024),
             nn.ReLU(inplace=True),
             nn.Dropout(0.3),
-            nn.Linear(512, embedding_dim),
+            nn.Linear(1024, embedding_dim),
         )
 
         # Freeze early layers (first ~6 blocks), fine-tune later layers
         self._freeze_early_layers()
 
     def _freeze_early_layers(self):
-        """Freeze conv1, bn1, and the first 3 residual blocks."""
+        """Freeze only conv1, bn1, relu, maxpool, and layer1 (first 5 children).
+        This lets layer2, layer3, and layer4 adapt to the sketch-photo domain."""
         children = list(self.features.children())
         # children[0]=conv1, [1]=bn1, [2]=relu, [3]=maxpool, [4]=layer1, [5]=layer2, [6]=layer3, [7]=layer4
-        for child in children[:6]:  # freeze through layer2
+        for child in children[:5]:  # freeze through layer1 only
             for param in child.parameters():
                 param.requires_grad = False
 

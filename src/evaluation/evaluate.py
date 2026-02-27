@@ -21,6 +21,22 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.data.dataset import discover_pairs, split_pairs, RetrievalDataset
+
+
+def load_or_generate_test_pairs(data_root: str, seed: int) -> list[dict]:
+    """Load saved test split if available, otherwise regenerate (with warning)."""
+    splits_path = Path("data/splits/test.json")
+    if splits_path.exists():
+        with open(splits_path) as f:
+            test_pairs = json.load(f)
+        print(f"  Loaded saved test split from {splits_path} ({len(test_pairs)} pairs)")
+        return test_pairs
+    else:
+        print("  WARNING: No saved test split found — regenerating from scratch.")
+        print("           Run training first to save canonical splits.")
+        pairs = discover_pairs(data_root)
+        splits = split_pairs(pairs, seed=seed)
+        return splits["test"]
 from src.models.siamese import SiameseNetwork
 
 
@@ -162,10 +178,8 @@ def main():
     model.load_state_dict(ckpt["model_state_dict"])
     print(f"  Loaded model from epoch {ckpt.get('epoch', '?')}")
 
-    # Data
-    pairs = discover_pairs(args.data_root)
-    splits = split_pairs(pairs, seed=args.seed)
-    test_pairs = splits["test"]
+    # Data — load the exact saved test split to avoid leakage
+    test_pairs = load_or_generate_test_pairs(args.data_root, args.seed)
     print(f"  Test set: {len(test_pairs)} pairs")
 
     if len(test_pairs) == 0:
