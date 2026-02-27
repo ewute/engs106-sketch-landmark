@@ -148,6 +148,12 @@ Given 29 test identities, we compute embeddings for all 29 sketches and 29 photo
 | **Rank-5** | **34.5%** (10/29) |
 | **Rank-10** | **58.6%** (17/29) |
 
+#### Retrieval Visualization
+
+![Sketch → Photo Retrieval](outputs/retrieval_visualization.png)
+
+*For each query sketch (left column), the top-5 most similar photographs are shown. Green = correct match, red = incorrect.*
+
 For comparison, random chance on 29 identities would yield:
 - Rank-1: 3.4%, Rank-5: 17.2%, Rank-10: 34.5%
 
