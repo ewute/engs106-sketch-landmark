@@ -1,0 +1,176 @@
+[
+  {
+    "photo": "data\\raw\\photos\\f-010-01.jpg",
+    "sketch": "data\\raw\\sketches\\f1-001-01-sz1.jpg",
+    "identity": "cuhk_0005",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\f-015-01.jpg",
+    "sketch": "data\\raw\\sketches\\f1-006-01-sz1.jpg",
+    "identity": "cuhk_0010",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\f-017-01.jpg",
+    "sketch": "data\\raw\\sketches\\f1-008-01-sz1.jpg",
+    "identity": "cuhk_0012",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\f-026-01.jpg",
+    "sketch": "data\\raw\\sketches\\F2-006-01-sz1.jpg",
+    "identity": "cuhk_0021",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\f-034-01.jpg",
+    "sketch": "data\\raw\\sketches\\F2-014-01-sz1.jpg",
+    "identity": "cuhk_0029",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\f-039-01.jpg",
+    "sketch": "data\\raw\\sketches\\F2-019-01-sz1.jpg",
+    "identity": "cuhk_0034",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m-018-01.jpg",
+    "sketch": "data\\raw\\sketches\\m-073-01-sz1.jpg",
+    "identity": "cuhk_0064",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m-046-01.jpg",
+    "sketch": "data\\raw\\sketches\\m-100-01-sz1.jpg",
+    "identity": "cuhk_0091",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m-047-01.jpg",
+    "sketch": "data\\raw\\sketches\\m-101-01-sz1.jpg",
+    "identity": "cuhk_0092",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m-050-01.jpg",
+    "sketch": "data\\raw\\sketches\\m1-003-01-sz1.jpg",
+    "identity": "cuhk_0095",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m-052-01.jpg",
+    "sketch": "data\\raw\\sketches\\m1-005-01-sz1.jpg",
+    "identity": "cuhk_0097",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m-055-01.jpg",
+    "sketch": "data\\raw\\sketches\\m1-008-01-sz1.jpg",
+    "identity": "cuhk_0100",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m-061-01.jpg",
+    "sketch": "data\\raw\\sketches\\m1-014-01-sz1.jpg",
+    "identity": "cuhk_0106",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m-064-01.jpg",
+    "sketch": "data\\raw\\sketches\\m1-017-01-sz1.jpg",
+    "identity": "cuhk_0109",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m-065-01.jpg",
+    "sketch": "data\\raw\\sketches\\m1-018-01-sz1.jpg",
+    "identity": "cuhk_0110",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m-069-01.jpg",
+    "sketch": "data\\raw\\sketches\\m1-022-01-sz1.jpg",
+    "identity": "cuhk_0114",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m-078-01.jpg",
+    "sketch": "data\\raw\\sketches\\m1-031-01-sz1.jpg",
+    "identity": "cuhk_0123",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m-080-01.jpg",
+    "sketch": "data\\raw\\sketches\\m1-033-01-sz1.jpg",
+    "identity": "cuhk_0125",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m-081-01.jpg",
+    "sketch": "data\\raw\\sketches\\m1-034-01-sz1.jpg",
+    "identity": "cuhk_0126",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m-087-01.jpg",
+    "sketch": "data\\raw\\sketches\\m1-040-01-sz1.jpg",
+    "identity": "cuhk_0132",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m1-006-01.jpg",
+    "sketch": "data\\raw\\sketches\\M2-027-01-sz1.jpg",
+    "identity": "cuhk_0152",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m1-007-01.jpg",
+    "sketch": "data\\raw\\sketches\\M2-028-01-sz1.jpg",
+    "identity": "cuhk_0153",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m1-009-01.jpg",
+    "sketch": "data\\raw\\sketches\\M2-030-01-sz1.jpg",
+    "identity": "cuhk_0155",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m1-012-01.jpg",
+    "sketch": "data\\raw\\sketches\\M2-033-01-sz1.jpg",
+    "identity": "cuhk_0158",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m1-020-01.jpg",
+    "sketch": "data\\raw\\sketches\\M2-041-01-sz1.jpg",
+    "identity": "cuhk_0166",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m1-024-01.jpg",
+    "sketch": "data\\raw\\sketches\\M2-045-01-sz1.jpg",
+    "identity": "cuhk_0170",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m1-031-01.jpg",
+    "sketch": "data\\raw\\sketches\\M2-052-01-sz1.jpg",
+    "identity": "cuhk_0177",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m1-032-01.jpg",
+    "sketch": "data\\raw\\sketches\\M2-053-01-sz1.jpg",
+    "identity": "cuhk_0178",
+    "source": "CUHK"
+  },
+  {
+    "photo": "data\\raw\\photos\\m1-038-01.jpg",
+    "sketch": "data\\raw\\sketches\\M2-059-01-sz1.jpg",
+    "identity": "cuhk_0184",
+    "source": "CUHK"
+  }
+]
